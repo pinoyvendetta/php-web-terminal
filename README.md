@@ -1,4 +1,4 @@
-# PHP Web Terminal v1.0.0
+# PHP Web Terminal v1.0.1
 
 A simple yet powerful PHP-based web terminal for executing commands on Linux and Windows servers directly from your browser. It includes features for file management, command execution, and system information display.
 
