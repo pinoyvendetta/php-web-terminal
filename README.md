@@ -100,9 +100,11 @@ This tool is provided for educational and legitimate system administration purpo
 * **HTTPS:** Always access this tool over HTTPS to encrypt communication.
 * **File Permissions:** Be mindful of file permissions on the server. The script's ability to read/write files and execute commands is governed by the permissions of the web server user.
 * **Disable Functions:** The tool attempts to use various PHP functions for command execution. If some are disabled via `disable_functions` in `php.ini`, it will try alternatives. The list of disabled functions is displayed in the header.
-* **Path Traversal:** The script includes measures to prevent path traversal for file editing and downloads by resolving paths relative to the CWD. However, always be cautious.
+* **This version of the script has been intentionally modified to allow path traversal for the edit and download commands. This means you can access files outside of the current working directory using relative paths (e.g., edit ../../file.php) or absolute paths (e.g., download /etc/passwd).
+
+Warning: This feature removes critical security safeguards. Exercise extreme caution, as it grants access to any file on the server that the web server's user account has permission to read or write.
 
 ## Version
 
-v1.0.0
+v1.0.1
 

