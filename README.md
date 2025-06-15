@@ -51,7 +51,7 @@ This tool is provided for educational and legitimate system administration purpo
     * To change the password, you **MUST** edit the `term.php` file.
     * Locate the following line:
         ```php
-        $default_password_hash = '152f90e55597001071345e8a037d5c4e'; // MD5 for "Pinoy404!"
+        $default_password_hash = '2ebba5cd75576c408240e57110e7b4ff'; // MD5 for "myp@ssw0rd"
         ```
     * Replace the MD5 hash with the MD5 hash of your new desired password. You can generate an MD5 hash using various online tools or command-line utilities (e.g., `echo -n "yournewpassword" | md5sum`).
 
