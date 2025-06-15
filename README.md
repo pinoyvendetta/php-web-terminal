@@ -2,6 +2,8 @@
 
 A simple yet powerful PHP-based web terminal for executing commands on Linux and Windows servers directly from your browser. It includes features for file management, command execution, and system information display.
 
+![image](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExdm5qY2l1dmU5OTM3bmVrMjVlbGRzeHozZ2U2emtqZGxoaDJ5dmdlMCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/M26KpCq0rGcKFryk45/giphy.gif)
+
 ## Disclaimer
 
 **FOR ETHICAL USE ONLY.**
