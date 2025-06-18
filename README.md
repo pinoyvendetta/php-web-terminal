@@ -47,7 +47,7 @@ This tool is provided for educational and legitimate system administration purpo
 
 1.  **Deploy:** Place the `term.php` file on a web server with PHP enabled.
 2.  **Set Password:**
-    * The default password is `Pinoy404!`.
+    * The default password is `myp@ssw0rd.
     * To change the password, you **MUST** edit the `term.php` file.
     * Locate the following line:
         ```php
