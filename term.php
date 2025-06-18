@@ -4,7 +4,7 @@
  *
  * @version 1.1.0
  * @pv.pat [Original Author] - Updated by @pinoyvendetta
- * @link https://github.com/your-repo/php-web-terminal
+ * @link https://github.com/pinoyvendetta/php-web-terminal
  */
 session_start();
 date_default_timezone_set('Asia/Manila');
