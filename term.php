@@ -5,13 +5,7 @@
  * @version 1.2.2
  * @pv.pat [Original Author] - Updated by @pinoyvendetta
  * @link https://github.com/pinoyvendetta/php-web-terminal
- *
- * MODIFICATIONS:
- * - Added support for long-running commands via real-time output streaming.
- * - Added a feature to abort the currently running command (like CTRL+C).
- * - Uses proc_open for streaming and process management.
- * - Frontend uses Fetch API with ReadableStream to handle live output.
- * - Fixed header layout to a two-column design and added a live clock.
+
  */
 
 // --- Basic Setup ---
@@ -98,26 +92,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
     $action = $_POST['action'] ?? '';
 
-    // == STREAMING COMMAND HANDLER ==
+    // == STREAMING COMMAND HANDLER (GENERALIZED REAL-TIME FIX) ==
     if ($action === 'stream') {
         // Essential headers for streaming
         header('Content-Type: text/plain; charset=utf-8');
         header('X-Content-Type-Options: nosniff');
         
-        // Disable GZIP compression
-        if (function_exists('apache_setenv')) {
-            @apache_setenv('no-gzip', 1);
-        }
+        // Disable GZIP and output buffering
+        if (function_exists('apache_setenv')) { @apache_setenv('no-gzip', 1); }
         @ini_set('zlib.output_compression', 0);
+        @ini_set('output_buffering', 'off');
 
         $command = trim($_POST['command']);
         $custom_shell = isset($_POST['custom_shell']) ? trim($_POST['custom_shell']) : '';
         $cwd = $_SESSION['cwd'];
 
-        $exec_command = !empty($custom_shell)
-            ? escapeshellcmd($custom_shell) . ' ' . escapeshellarg($command)
-            : $command;
+        $exec_command = !empty($custom_shell) ? $custom_shell . ' ' . $command : $command;
 
+        // --- NEW UNBUFFERING LOGIC ---
+        // General solution for script buffering.
+        // It prepends the correct flags to the interpreter to force unbuffered output.
+        if (preg_match('/^(php)\s+(.*)/i', $command, $matches)) {
+            // For PHP scripts, disable output_buffering.
+            $exec_command = 'php -d output_buffering=Off -d zlib.output_compression=Off ' . $matches[2];
+        } elseif (preg_match('/^(python[23]?)\s+(.*)/i', $command, $matches)) {
+            // For Python scripts, use the unbuffered flag.
+            $exec_command = $matches[1] . ' -u ' . $matches[2];
+        } elseif (preg_match('/^(perl)\s+(.*)/i', $command, $matches) && !$is_windows) {
+            // For Perl on Linux, stdbuf is a good option.
+             $exec_command = '/usr/bin/stdbuf -i0 -o0 -e0 ' . $command;
+        }
+        // For other commands on Linux, use stdbuf as a fallback.
+        elseif (!$is_windows && is_executable('/usr/bin/stdbuf')) {
+            $exec_command = '/usr/bin/stdbuf -i0 -o0 -e0 ' . $exec_command;
+        }
+        
         $full_command = $is_windows
             ? 'cd /d ' . escapeshellarg($cwd) . ' && ' . $exec_command
             : 'cd ' . escapeshellarg($cwd) . ' && ' . $exec_command;
@@ -128,39 +137,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
            2 => ["pipe", "w"]  // stderr
         ];
         $pipes = [];
-        $process = proc_open($full_command . ' 2>&1', $descriptorspec, $pipes, $cwd);
+        $process = proc_open($full_command, $descriptorspec, $pipes, $cwd);
 
         if (is_resource($process)) {
             $status = proc_get_status($process);
-            $_SESSION['running_process_pid'] = $status['pid'];
-            session_write_close(); // IMPORTANT: Unlock session for other requests (like abort)
+            
+            $pid_file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpt-pid-' . session_id();
+            file_put_contents($pid_file, $status['pid']);
+            session_write_close();
 
-            fclose($pipes[0]); // Don't need stdin
+            fclose($pipes[0]);
+
+            stream_set_blocking($pipes[1], false);
+            stream_set_blocking($pipes[2], false);
 
             while (true) {
-                // Check if connection is still alive, otherwise stop the script.
-                if(connection_aborted()) {
-                    // Clean up before exiting
-                    fclose($pipes[1]);
-                    fclose($pipes[2]);
-                    proc_close($process);
+                $status = proc_get_status($process);
+                if (connection_aborted()) {
+                    if ($status['running']) {
+                        fclose($pipes[1]);
+                        fclose($pipes[2]);
+                        if ($is_windows) {
+                            exec("taskkill /F /T /PID " . $status['pid'] . " > nul 2>&1");
+                        } else {
+                            exec("pkill -P " . $status['pid'] . "; kill -9 " . $status['pid'] . " > /dev/null 2>&1");
+                        }
+                        proc_close($process);
+                    }
+                    if(file_exists($pid_file)) unlink($pid_file);
                     exit();
                 }
 
-                $output = fgets($pipes[1], 1024);
-                if ($output === false) break;
-                echo $output;
+                $read = [$pipes[1], $pipes[2]];
+                $write = null;
+                $except = null;
+                
+                if (stream_select($read, $write, $except, 0, 50000) > 0) { // 0.05 second timeout
+                    foreach($read as $stream) {
+                        $output = fread($stream, 8192);
+                        if ($output !== false && strlen($output) > 0) {
+                            echo $output;
+                            @flush();
+                        }
+                    }
+                }
+
+                if (!$status['running']) {
+                    break;
+                }
             }
             
+            echo stream_get_contents($pipes[1]);
+            echo stream_get_contents($pipes[2]);
+
             fclose($pipes[1]);
             fclose($pipes[2]);
             proc_close($process);
 
-            session_start(); // Re-acquire session to clean up
-            unset($_SESSION['running_process_pid']);
-            session_write_close();
+            if (file_exists($pid_file)) {
+                unlink($pid_file);
+            }
         } else {
-            echo "Error: Failed to execute command.";
+            echo "Error: Failed to execute command using proc_open.";
+            @flush();
         }
         exit;
     }
@@ -168,20 +207,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
     // == ABORT COMMAND HANDLER ==
     if ($action === 'abort') {
         header('Content-Type: application/json');
-        if (isset($_SESSION['running_process_pid'])) {
-            $pid = (int)$_SESSION['running_process_pid'];
-            unset($_SESSION['running_process_pid']);
+        session_write_close();
+
+        $pid_file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpt-pid-' . session_id();
+
+        if (file_exists($pid_file)) {
+            $pid = (int)file_get_contents($pid_file);
+            unlink($pid_file);
 
             if ($pid > 0) {
                 if ($is_windows) {
                     exec("taskkill /F /T /PID $pid > nul 2>&1");
                 } else {
-                    // Use a sequence of signals to terminate process and children
                     exec("pkill -P $pid; kill -9 $pid > /dev/null 2>&1");
                 }
                 echo json_encode(['status' => 'aborted', 'pid' => $pid]);
             } else {
-                echo json_encode(['status' => 'error', 'message' => 'Invalid PID.']);
+                echo json_encode(['status' => 'error', 'message' => 'Invalid PID found.']);
             }
         } else {
             echo json_encode(['status' => 'error', 'message' => 'No running process found.']);
