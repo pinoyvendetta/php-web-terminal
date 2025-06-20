@@ -27,7 +27,7 @@ Features
 
     Command History: Client-side history navigation using arrow keys.
 
-    Custom Shell Execution: Option to specify a custom shell or interpreter for commands (e.g., /bin/bash, python).
+    Custom Shell Execution: Option to specify a custom shell or interpreter for commands (e.g., /bin/bash, python, ./Pwnkit).
 
     System Information Display: Shows crucial server details like Uname, PHP Version, Server IP, Client IP, current user, CWD, and disabled PHP functions.
 
