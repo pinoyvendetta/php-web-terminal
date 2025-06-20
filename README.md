@@ -1,137 +1,108 @@
-PHP Web Terminal v1.2.2
-
-A simple yet powerful PHP-based web terminal for executing commands on Linux and Windows servers directly from your browser. It includes features for file management, real-time command execution, and system information display.
+PHP Web Terminal Shell
 
 ![image](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExdm5qY2l1dmU5OTM3bmVrMjVlbGRzeHozZ2U2emtqZGxoaDJ5dmdlMCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/M26KpCq0rGcKFryk45/giphy.gif)
 
-## Disclaimer
+This is a simple, secure, and cross-platform web-based terminal written in PHP. It provides remote command execution capabilities, file management features (upload, download, edit), and real-time output streaming, accessible directly through your web browser.
+Disclaimer
 
 FOR ETHICAL USE ONLY.
-
 This tool is provided for educational and legitimate system administration purposes only. The user is solely responsible for any actions performed using this tool. The author is not responsible or liable for any damage, misuse, or illegal activity caused by this tool. Use at your own risk and ensure you have proper authorization before using it on any system.
+Features
 
-## Features
+    Password Authentication: Secures access to the terminal with an MD5-hashed password.
 
-    Cross-Platform Compatibility: Works on both Linux and Windows servers.
+    Cross-Platform Compatibility: Designed to work seamlessly on both Windows and Linux servers.
 
-    Password Protection: Simple MD5 hashed password for access.
+    Real-time Command Streaming: Executes commands and streams output back to the browser in real-time for long-running processes, preventing timeouts.
 
-    Real-time Command Execution:
+    Command Abort: Allows termination of currently running commands.
 
-        Live Output Streaming: Execute long-running commands (e.g., ping, nmap, running scripts) and see the output in real-time, just like a native terminal. Prevents browser timeouts.
+    Directory Navigation: Supports cd command to change the current working directory.
 
-        Abort Command: A dedicated "Abort Task" button appears during command execution, allowing you to terminate the running process at any time (similar to CTRL+C).
+    File Editor: Built-in modal editor to view and modify files directly from the browser.
 
-    Directory Navigation:
+    File Upload: Facilitates easy uploading of files to the current working directory on the server.
 
-        cd <directory>: Change current working directory. Supports relative paths, absolute paths, and ~ for home directory.
+    File Download: Enables downloading of files from the server.
 
-    File Management:
+    Command History: Client-side history navigation using arrow keys.
 
-        File Upload: Upload files directly to the server's current working directory.
+    Custom Shell Execution: Option to specify a custom shell or interpreter for commands (e.g., /bin/bash, python).
 
-        File Download: download <filename> to download files from the server.
+    System Information Display: Shows crucial server details like Uname, PHP Version, Server IP, Client IP, current user, CWD, and disabled PHP functions.
 
-        File Editor: edit <filename> to open a simple text editor in a modal to view and modify file contents.
+    PHP Version Compatibility: Compatible with PHP 5.3+, PHP 7.x, and PHP 8.x.
 
-    Custom Shell/Binary Execution:
+    User-Friendly Interface: Clean, matrix-style terminal UI.
 
-        Option to specify a custom shell or binary (e.g., ./mytool) to prefix commands.
+Compatibility
 
-    System Information Display:
+    PHP Versions: 5.3+, 7.x, 8.x
 
-        Shows server OS details (uname -a / ver).
+    Operating Systems: Windows, Linux
 
-        PHP version and safe_mode status.
+Installation & Setup
 
-        List of disabled PHP functions.
+    Download: Download the term.php file.
 
-        Server and Client IP addresses.
+    Upload: Upload the term.php file to your web server in a directory accessible via HTTP (e.g., your public HTML directory or a subdirectory).
 
-        Current User.
+    Password: The default password is myp@ssw0rd. It is highly recommended to change this. To do so, modify the $default_password_hash variable in the term.php file. You can generate a new MD5 hash for your desired password using an online MD5 generator or echo md5('your_new_password'); in a PHP script.
 
-        Current Working Directory (CWD).
+    // --- MD5 Password ---
+    $default_password_hash = '2ebba5cd75576c408240e57110e7b4ff'; // MD5 for "myp@ssw0rd"
+    // Change '2ebba5cd75576c408240e57110e7b4ff' to the MD5 hash of your new password.
 
-    User Interface:
+    Permissions: Ensure the directory where term.php resides, and any directories you wish to interact with, have appropriate read/write permissions for the web server user.
 
-        Retro terminal theme.
+Usage
 
-        Live Clock: Header displays the current server date and time, updating every second.
+    Access the Terminal: Open your web browser and navigate to the URL where you uploaded term.php (e.g., http://your-domain.com/term.php).
 
-        Clean two-column header layout.
+    Login: Enter the password (myp@ssw0rd by default, or your custom password) to log in.
 
-        Command history (navigate with Up/Down arrow keys).
+    Execute Commands:
 
-        clear command to clear the terminal output.
+        Type your command in the input field at the bottom.
 
-        Logout functionality.
+        Press Enter to execute.
 
-    Error Logging: Logs PHP errors to term_error_log in the same directory as the script.
+        Special Commands:
 
-## Setup and Installation
+            cd <directory_path>: Change the current working directory. Examples: cd .., cd /var/www, cd C:\Users\Public
 
-    Deploy: Place the term.php file on a web server with PHP enabled. proc_open and related functions are required for the streaming and abort features.
+            edit <file_path>: Opens a modal editor for the specified file. If the file doesn't exist, it will be created upon saving.
 
-    Set Password:
+            download <file_path>: Initiates a download for the specified file.
 
-        The default password is myp@ssw0rd.
+            clear: Clears the terminal output (client-side only).
 
-        To change the password, you MUST edit the term.php file.
+        Command History: Use the Up and Down arrow keys to navigate through previously entered commands.
 
-        Locate the following line:
+        Custom Shell: Use the "Custom Shell" input field to specify a different interpreter (e.g., /bin/bash, python, Pwnkit) to run commands with. Leave empty to use the default shell.
 
-        $default_password_hash = '2ebba5cd75576c408240e57110e7b4ff'; // MD5 for "myp@ssw0rd"
+        Abort Task: Click the Abort Task button to terminate a long-running streamed command.
 
-        Replace the MD5 hash with the MD5 hash of your new desired password. You can generate an MD5 hash using various online tools or command-line utilities (e.g., echo -n "yournewpassword" | md5sum).
+    File Upload:
 
-## Usage
+        Use the "Choose File" button at the bottom.
 
-    Access: Open the term.php file in your web browser (e.g., http://yourserver.com/path/to/term.php).
+        Select the file from your local system.
 
-    Login: You will be prompted for a password. Enter the password you configured.
+        Click the "Upload" button to upload the file to the current working directory.
 
-    Terminal Interface:
+Security Considerations
 
-        Command Input: Type commands into the input field at the bottom of the terminal and press Enter.
+    Strong Password: Always change the default password immediately to a strong, unique one.
 
-        Output: For long-running commands, output will be streamed live to the terminal.
+    Limited Access: Consider restricting access to term.php to specific IP addresses using web server configurations (e.g., Apache's .htaccess or Nginx configuration) or firewall rules.
 
-        Abort Task: While a command is running, an "Abort Task" button will appear. Click it to stop the current process.
+    Dedicated Environment: If possible, host this script in a sandboxed or dedicated environment.
 
-## Special Commands
+    Monitor Logs: Regularly check server access logs and term_error_log (generated in the same directory as term.php) for suspicious activity.
 
-    cd <directory>: Change the current working directory.
+    Disabled Functions: The header displays Disabled Functions from php.ini. Be aware of which functions are enabled/disabled on your server, as some may pose security risks if misused.
 
-    edit <filename>: Opens the specified file in a modal editor.
+License
 
-    download <filename>: Initiates a download for the specified file.
-
-    clear: Clears the terminal output screen.
-
-    Command History: Use the Up and Down arrow keys to navigate through previously executed commands.
-
-## File Upload
-
-    Use the "Choose File" button in the footer to select a file.
-
-    Click "Upload" to send it to the server's current working directory.
-
-## Custom Shell
-
-    The "Custom Shell" input field allows you to specify a path to a binary or script (e.g., /bin/bash) that should be used to execute your commands. Leave this empty to use the default system shell.
-
-## Security Considerations
-
-    Strong Password: Always change the default password to something strong and unique.
-
-    Server Security: This tool provides direct shell access. Secure the server environment where this script is hosted and restrict access to it.
-
-    HTTPS: Always access this tool over HTTPS to encrypt communication.
-
-    File Permissions: The script's capabilities are governed by the permissions of the web server's user (www-data, apache, etc.). Be mindful of these permissions.
-
-    This script allows path traversal for edit and download commands. This means you can access files outside of the current working directory using relative paths (e.g., edit ../../file.php) or absolute paths (e.g., download /etc/passwd). Exercise extreme caution with this feature.
-
-Version
-
-v1.2.2
+This project is open-source and available under the MIT License.

