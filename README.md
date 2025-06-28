@@ -24,7 +24,7 @@ This is a simple, secure, and cross-platform web-based terminal written in PHP. 
 -   **System Information Display**: Shows crucial server details like Uname, PHP Version, Server IP, Client IP, current user, CWD, and disabled PHP functions.
 -   **PHP Version Compatibility**: Compatible with PHP 5.3+, PHP 7.x, and PHP 8.x.
 -   **User-Friendly Interface**: Clean, matrix-style terminal UI.
-
+![Toolkit GIF](https://raw.githubusercontent.com/pinoyvendetta/php-web-terminal/refs/heads/main/img/main1.png)
 ## Compatibility
 
 -   **PHP Versions**: 5.3+, 7.x, 8.x
@@ -63,7 +63,7 @@ This is a simple, secure, and cross-platform web-based terminal written in PHP. 
     -   Use the "**Choose File**" button at the bottom.
     -   Select the file from your local system.
     -   Click the "**Upload**" button to upload the file to the current working directory.
-
+![Toolkit GIF](https://raw.githubusercontent.com/pinoyvendetta/php-web-terminal/refs/heads/main/img/login.png)
 ## Security Considerations
 
 -   **Strong Password**: Always change the default password immediately to a strong, unique one.
