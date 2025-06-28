@@ -48,6 +48,7 @@ This is a simple, secure, and cross-platform web-based terminal written in PHP. 
 
 1.  **Access the Terminal**: Open your web browser and navigate to the URL where you uploaded `term.php` (e.g., `http://your-domain.com/term.php`).
 2.  **Login**: Enter the password (`myp@ssw0rd` by default, or your custom password) to log in.
+![Toolkit GIF](https://raw.githubusercontent.com/pinoyvendetta/php-web-terminal/refs/heads/main/img/login.png)
 3.  **Execute Commands**:
     -   Type your command in the input field at the bottom.
     -   Press `Enter` to execute.
@@ -63,7 +64,7 @@ This is a simple, secure, and cross-platform web-based terminal written in PHP. 
     -   Use the "**Choose File**" button at the bottom.
     -   Select the file from your local system.
     -   Click the "**Upload**" button to upload the file to the current working directory.
-![Toolkit GIF](https://raw.githubusercontent.com/pinoyvendetta/php-web-terminal/refs/heads/main/img/login.png)
+
 ## Security Considerations
 
 -   **Strong Password**: Always change the default password immediately to a strong, unique one.
