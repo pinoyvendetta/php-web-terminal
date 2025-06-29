@@ -22,6 +22,7 @@ This is a simple, secure, and cross-platform web-based terminal written in PHP. 
 -   **File Download**: Enables downloading of files from the server.
 -   **Command History**: Client-side history navigation using arrow keys.
 -   **Custom Shell Execution**: Option to specify a custom shell or interpreter for commands (e.g., `/bin/bash`, `python`, `./Pwnkit`).
+![Toolkit GIF](https://raw.githubusercontent.com/pinoyvendetta/php-web-terminal/refs/heads/main/img/got-root.png)
 -   **System Information Display**: Shows crucial server details like Uname, PHP Version, Server IP, Client IP, current user, CWD, and disabled PHP functions.
 -   **PHP Version Compatibility**: Compatible with PHP 5.3+, PHP 7.x, and PHP 8.x.
 -   **User-Friendly Interface**: Clean, matrix-style terminal UI.
