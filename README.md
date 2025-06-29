@@ -59,7 +59,7 @@ This is a simple, secure, and cross-platform web-based terminal written in PHP. 
     -   `download <file_path>`: Initiates a download for the specified file.
     -   `clear`: Clears the terminal output (client-side only).
 5.  **Command History**: Use the `Up` and `Down` arrow keys to navigate through previously entered commands.
-6.  **Custom Shell**: Use the "Custom Shell" input field to specify a different interpreter (e.g., `/bin/bash`, `python`, `php`) to run commands with. Leave empty to use the default shell.
+6.  **Custom Shell**: Use the "Custom Shell" input field to specify a different interpreter (e.g., `/bin/bash`, `python`, `./pwnkit`) to run commands with. Leave empty to use the default shell.
 7.  **Abort Task**: Click the **Abort Task** button to terminate a long-running streamed command.
 8.  **File Upload**:
     -   Use the "**Choose File**" button at the bottom.
