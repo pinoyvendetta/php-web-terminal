@@ -13,6 +13,7 @@ This is a simple, secure, and cross-platform web-based terminal written in PHP. 
 
 -   **Password Authentication**: Secures access to the terminal with an MD5-hashed password.
 -   **Cross-Platform Compatibility**: Designed to work seamlessly on both Windows and Linux servers.
+-   **Robust Command Execution**: Utilizes a chain of fallback functions (`shell_exec`, `proc_open`, `popen`, `passthru`, `system`, `exec`) to ensure commands can be executed in various server environments, even when some functions are disabled.
 -   **Real-time Command Streaming**: Executes commands and streams output back to the browser in real-time for long-running processes, preventing timeouts.
 -   **Command Abort**: Allows termination of currently running commands.
 -   **Directory Navigation**: Supports `cd` command to change the current working directory.

