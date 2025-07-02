@@ -2,12 +2,14 @@
 /**
  * PHP Web Terminal
  *
- * @version 1.2.4
+ * @version 1.2.5
  * @pv.pat [Original Author] - Updated by @pinoyvendetta
  * @link https://github.com/pinoyvendetta/php-web-terminal
  *
  * Enhanced for PHP 5.3+, 7.x, and 8.x compatibility,
  * and verified for Windows and Linux servers.
+ *
+ * v1.2.5 - Fixed custom shell path traversal issue by correctly escaping command arguments.
  */
 
 // --- Basic Setup ---
@@ -21,7 +23,7 @@ set_time_limit(0); // Allow script to run indefinitely for long tasks
 ob_implicit_flush(); // Ensure output is sent immediately
 
 // --- Version Information ---
-$version = '1.2.4';
+$version = '1.2.5';
 
 // --- System Detection ---
 $is_windows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
@@ -136,33 +138,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
         @ini_set('zlib.output_compression', 0);
         @ini_set('output_buffering', 'off');
 
+        // ========================= MODIFICATION START =========================
         $command = trim($_POST['command']);
         $custom_shell = isset($_POST['custom_shell']) ? trim($_POST['custom_shell']) : '';
         $cwd = $_SESSION['cwd'];
 
-        $exec_command = !empty($custom_shell) ? $custom_shell . ' ' . $command : $command;
+        // --- Refactored Command Construction & Unbuffering ---
+        $command_to_run = $command; // Start with the raw command.
+        $is_unbuffered = false;
 
-        // --- NEW UNBUFFERING LOGIC ---
-        // General solution for script buffering.
-        // It prepends the correct flags to the interpreter to force unbuffered output.
-        if (preg_match('/^(php)\s+(.*)/i', $command, $matches)) {
-            // For PHP scripts, disable output_buffering.
-            $exec_command = 'php -d output_buffering=Off -d zlib.output_compression=Off ' . $matches[2];
-        } elseif (preg_match('/^(python[23]?)\s+(.*)/i', $command, $matches)) {
-            // For Python scripts, use the unbuffered flag.
-            $exec_command = $matches[1] . ' -u ' . $matches[2];
-        } elseif (preg_match('/^(perl)\s+(.*)/i', $command, $matches) && !$is_windows) {
-            // For Perl on Linux, stdbuf is a good option.
-             $exec_command = '/usr/bin/stdbuf -i0 -o0 -e0 ' . $command;
+        // Apply interpreter-specific unbuffering
+        if (preg_match('/^(php)\s+(.*)/i', $command_to_run, $matches)) {
+            $command_to_run = 'php -d output_buffering=Off -d zlib.output_compression=Off ' . $matches[2];
+            $is_unbuffered = true;
+        } elseif (preg_match('/^(python[23]?)\s+(.*)/i', $command_to_run, $matches)) {
+            $command_to_run = $matches[1] . ' -u ' . $matches[2];
+            $is_unbuffered = true;
+        } elseif (preg_match('/^(perl)\s+(.*)/i', $command_to_run, $matches) && !$is_windows) {
+            $command_to_run = '/usr/bin/stdbuf -i0 -o0 -e0 ' . $command_to_run;
+            $is_unbuffered = true;
         }
-        // For other commands on Linux, use stdbuf as a fallback.
-        elseif (!$is_windows && is_executable('/usr/bin/stdbuf')) {
+
+        // Build the final command, wrapping with custom shell if provided
+        if (!empty($custom_shell)) {
+            // The key fix: pass the user's command as a single, safe argument to the custom shell.
+            // This allows the custom shell to correctly handle commands with spaces and special characters,
+            // including paths for traversal.
+            $exec_command = $custom_shell . ' ' . escapeshellarg($command_to_run);
+        } else {
+            $exec_command = $command_to_run;
+        }
+        
+        // Apply generic stdbuf wrapper if no specific unbuffering was applied and on a compatible system.
+        // This wraps the entire command, e.g., `stdbuf -o0 ./Pwnkit 'ls -la /root'`
+        if (!$is_unbuffered && !$is_windows && is_executable('/usr/bin/stdbuf')) {
             $exec_command = '/usr/bin/stdbuf -i0 -o0 -e0 ' . $exec_command;
         }
         
-        $full_command = $is_windows
-            ? 'cd /d ' . escapeshellarg($cwd) . ' && ' . $exec_command
-            : 'cd ' . escapeshellarg($cwd) . ' && ' . $exec_command;
+        // The `$cwd` parameter in `proc_open` handles the working directory,
+        // making the 'cd ... &&' prefix redundant and cleaner.
+        $full_command = $exec_command;
+        // ========================== MODIFICATION END ==========================
         
         // Changed to array() for PHP 5.3 compatibility
         $descriptorspec = array(
