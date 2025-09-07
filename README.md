@@ -76,6 +76,4 @@ This is a simple, secure, and cross-platform web-based terminal written in PHP. 
 -   **Monitor Logs**: Regularly check server access logs and `term_error_log` (generated in the same directory as `term.php`) for suspicious activity.
 -   **Disabled Functions**: The header displays **Disabled Functions** from `php.ini`. Be aware of which functions are enabled/disabled on your server, as some may pose security risks if misused.
 
-## License
-
-This project is open-source and available under the [MIT License](https://opensource.org/licenses/MIT).
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
